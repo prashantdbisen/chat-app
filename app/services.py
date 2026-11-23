@@ -29,7 +29,8 @@ def iso(moment) -> str | None:
 
 
 def user_dict(user: User) -> dict:
-    return {"id": user.id, "username": user.username, "last_seen": iso(user.last_seen_at)}
+    # "username" is the display version (e.g. "Alice"); sign-in uses the lowercase one
+    return {"id": user.id, "username": user.display_name, "last_seen": iso(user.last_seen_at)}
 
 
 def attachment_dict(attachment) -> dict:
@@ -73,10 +74,10 @@ def message_dict(message: Message) -> dict:
 
 
 def receipt_dict(member: RoomMember) -> dict:
-    read = member.last_read_message_id or 0
+    read = member.last_read_message_id
     return {
         "user_id": member.user_id,
-        "delivered_id": max(member.last_delivered_message_id or 0, read),  # read implies delivered
+        "delivered_id": max(member.last_delivered_message_id, read),  # read implies delivered
         "read_id": read,
     }
 
@@ -103,7 +104,7 @@ def room_dict(db: Session, room: Room, me_id: int) -> dict:
         "id": room.id,
         "name": room.name,
         "is_direct": room.is_direct,
-        "members": sorted((user_dict(m.user) for m in room.members), key=lambda u: u["username"]),
+        "members": sorted((user_dict(m.user) for m in room.members), key=lambda u: u["username"].lower()),
         "receipts": [receipt_dict(m) for m in room.members],
         "unread": unread,
         "last_message": message_dict(last) if last else None,
@@ -198,7 +199,7 @@ def mark_delivered(db: Session, room_id: int, user_id: int, message_id: int) -> 
     if membership is None:
         return None
     message_id = min(message_id, latest_message_id(db, room_id))  # can't receive the future
-    if message_id > (membership.last_delivered_message_id or 0):
+    if message_id > membership.last_delivered_message_id:
         membership.last_delivered_message_id = message_id
         db.commit()
         return membership
@@ -213,10 +214,10 @@ def mark_read(db: Session, room_id: int, user_id: int, message_id: int, commit: 
     if commit:
         message_id = min(message_id, latest_message_id(db, room_id))
     changed = False
-    if message_id > (membership.last_read_message_id or 0):
+    if message_id > membership.last_read_message_id:
         membership.last_read_message_id = message_id
         changed = True
-    if message_id > (membership.last_delivered_message_id or 0):
+    if message_id > membership.last_delivered_message_id:
         membership.last_delivered_message_id = message_id
         changed = True
     if changed and commit:

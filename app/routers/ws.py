@@ -86,7 +86,7 @@ async def chat_socket(websocket: WebSocket, token: str = ""):
         await websocket.send_json({"type": "online_users", "user_ids": manager.online_user_ids()})
         if came_online:
             await manager.broadcast(
-                {"type": "presence", "user_id": user.id, "username": user.username, "online": True,
+                {"type": "presence", "user_id": user.id, "username": user.display_name, "online": True,
                  "last_seen": _set_last_seen(user.id)},
                 skip_user=user.id,
             )
@@ -107,7 +107,7 @@ async def chat_socket(websocket: WebSocket, token: str = ""):
     finally:
         if manager.remove(user.id, websocket):
             await manager.broadcast(
-                {"type": "presence", "user_id": user.id, "username": user.username, "online": False,
+                {"type": "presence", "user_id": user.id, "username": user.display_name, "online": False,
                  "last_seen": _set_last_seen(user.id)}
             )
 
@@ -156,7 +156,7 @@ async def _handle_event(websocket: WebSocket, user: User, event: dict, limiter: 
         elif kind == "typing":
             await manager.send_to_users(
                 member_ids(db, room_id),
-                {"type": "typing", "room_id": room_id, "user": {"id": user.id, "username": user.username},
+                {"type": "typing", "room_id": room_id, "user": {"id": user.id, "username": user.display_name},
                  "is_typing": bool(event.get("is_typing"))},
                 skip_user=user.id,
             )

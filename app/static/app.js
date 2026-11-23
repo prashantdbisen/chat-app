@@ -549,7 +549,7 @@ async function submitAuth(event) {
   submit.textContent = AUTH_TEXT[authMode].busy;
   try {
     const data = await api(`/api/auth/${authMode}`, {
-      method: "POST", body: { username: cleanUsername(), password: $("auth-password").value },
+      method: "POST", body: { username: $("auth-username").value.trim(), password: $("auth-password").value },
     });
     state.token = data.access_token;
     localStorage.setItem("relay_token", state.token);
@@ -748,6 +748,7 @@ function renderChatHeader() {
   fillAvatar($("chat-avatar"), roomTitle(room), { group: !room.is_direct, userId: other ? other.id : null });
   $("chat-name").textContent = roomTitle(room);
   const subtitle = $("chat-subtitle");
+  subtitle.title = "";
   const typers = typingNames(room.id);
   subtitle.classList.toggle("is-typing", typers.length > 0);
   if (typers.length) {
@@ -755,9 +756,14 @@ function renderChatHeader() {
   } else if (room.is_direct) {
     subtitle.textContent = state.online.has(other.id) ? "Online" : lastSeenText(other.last_seen);
   } else {
-    const onlineCount = room.members.filter((m) => state.online.has(m.id)).length;
-    const members = room.members.length;
-    $("chat-subtitle").textContent = `${members} member${members === 1 ? "" : "s"}, ${onlineCount} online`;
+    // Like WhatsApp: member names, with "You" last
+    const names = room.members
+      .filter((m) => m.id !== state.me.id)
+      .map((m) => m.username)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    names.push("You");
+    subtitle.textContent = names.join(", ");
+    subtitle.title = names.join(", "); // full list on hover when it's cut off
   }
   $("leave-group").hidden = room.is_direct;
 }

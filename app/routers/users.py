@@ -24,4 +24,4 @@ def search_users(
     if q.strip():
         query = query.where(User.username.contains(q.strip().lower()))
     people = db.scalars(query.order_by(User.username).limit(20))
-    return [{"id": p.id, "username": p.username, "online": manager.is_online(p.id)} for p in people]
+    return [{"id": p.id, "username": p.display_name, "online": manager.is_online(p.id)} for p in people]

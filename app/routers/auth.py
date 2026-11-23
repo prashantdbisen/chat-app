@@ -96,7 +96,8 @@ async def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if db.scalar(select(User.id).where(User.username == body.username)):
         raise FieldError(status.HTTP_409_CONFLICT, "username", _taken_message(body.username))
 
-    user = User(username=body.username, password_hash=hash_password(body.password))
+    user = User(username=body.username, display_name=body.display_name,
+                password_hash=hash_password(body.password))
     db.add(user)
     try:
         db.commit()

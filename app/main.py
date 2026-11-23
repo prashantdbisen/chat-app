@@ -16,7 +16,6 @@ from app.config import (APP_NAME, DELETE_FOR_EVERYONE_HOURS, EDIT_WINDOW_MINUTES
                         MESSAGE_MAX_LENGTH)
 from app.database import Base, SessionLocal, engine
 from app.errors import install_error_handlers
-from app.migrations import add_missing_columns
 from app.routers import attachments, auth, messages, rooms, users, ws
 from app.services import get_or_create_default_room
 
@@ -27,7 +26,6 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 async def lifespan(app: FastAPI):
     # Runs once at startup: create tables and the default room if missing
     Base.metadata.create_all(bind=engine)
-    add_missing_columns(engine, Base.metadata)  # Upgrade older databases
     with SessionLocal() as db:
         get_or_create_default_room(db)
     yield

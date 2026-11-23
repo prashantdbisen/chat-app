@@ -25,7 +25,8 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # lowercase: used to sign in
+    display_name: Mapped[str] = mapped_column(String(20))  # how the name is shown, e.g. "Alice"
     password_hash: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -52,7 +53,7 @@ class RoomMember(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     # Newest message id this member has RECEIVED (grey ✓✓) and READ (blue ✓✓)
-    last_delivered_message_id: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
+    last_delivered_message_id: Mapped[int] = mapped_column(Integer, default=0)
     last_read_message_id: Mapped[int] = mapped_column(Integer, default=0)
 
     room: Mapped[Room] = relationship(back_populates="members")

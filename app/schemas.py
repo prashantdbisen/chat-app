@@ -7,7 +7,7 @@ typing - but the server ALWAYS checks again, because browser checks can be skipp
 
 import re
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from app.config import MESSAGE_MAX_LENGTH
 
@@ -53,9 +53,24 @@ def check_password(value: str) -> str:
     return value
 
 
+def display_name_for(raw: str) -> str:
+    """Keep a capital first letter only if it was typed: 'Alice' -> 'Alice', 'ALICE' -> 'Alice', 'alice' -> 'alice'."""
+    raw = raw.strip()
+    return raw[:1] + raw[1:].lower()
+
+
 class RegisterRequest(BaseModel):
     username: str
     password: str
+    display_name: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def remember_original_case(cls, data):
+        # Copy the username exactly as typed, before it is lowercased below
+        if isinstance(data, dict) and isinstance(data.get("username"), str):
+            data = {**data, "display_name": display_name_for(data["username"])}
+        return data
 
     @field_validator("username")
     @classmethod
@@ -69,8 +84,8 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Sign-in only checks that something was typed: older accounts may have been
-    created before the current password rules, and they must still be able to sign in."""
+    """Sign-in only checks that something was typed. The full rules apply when an
+    account is created; repeating them here would only leak hints to someone guessing."""
 
     username: str
     password: str

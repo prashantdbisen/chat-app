@@ -1,4 +1,4 @@
-"""Ticks, replies, editing, deleting, last seen and database upgrades."""
+"""Ticks, replies, editing, deleting and last seen."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -174,26 +174,3 @@ def test_public_config(client):
     config = client.get("/api/config").json()
     assert config["edit_window_minutes"] == 15 and config["delete_for_everyone_hours"] == 48
 
-
-def test_old_database_is_upgraded(tmp_path):
-    """A database from the previous version (missing new columns) is upgraded automatically."""
-    from sqlalchemy import create_engine, inspect, text
-
-    from app.database import Base
-    from app.migrations import add_missing_columns
-
-    engine = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR(20), "
-                          "password_hash VARCHAR(100), created_at DATETIME)"))
-        conn.execute(text("CREATE TABLE messages (id INTEGER PRIMARY KEY, room_id INTEGER, sender_id INTEGER, "
-                          "content TEXT, created_at DATETIME)"))
-        conn.execute(text("INSERT INTO messages VALUES (1, 1, 1, 'old message', '2026-01-01')"))
-    Base.metadata.create_all(bind=engine)
-    add_missing_columns(engine, Base.metadata)
-
-    columns = {c["name"] for c in inspect(engine).get_columns("messages")}
-    assert {"reply_to_id", "edited_at", "deleted_at"} <= columns
-    assert "last_seen_at" in {c["name"] for c in inspect(engine).get_columns("users")}
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT content FROM messages")).scalar() == "old message"

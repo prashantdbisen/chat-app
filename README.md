@@ -35,7 +35,7 @@ Create an account, chat in groups or one-to-one, and see who's online and typing
 - **XSS-safe rendering:** messages are always shown as plain text
 - **Responsive** desktop and phone layouts
 - **Themes:** System (follows your device), Light or Dark, on the sign-in page and in the app, remembered per browser
-- **52 automated tests** (pytest) and **Docker** setup with PostgreSQL
+- **59 automated tests** (pytest) and **Docker** setup with PostgreSQL
 
 ## 🧱 Tech Stack
 
@@ -63,7 +63,6 @@ chat-app/
 │   ├── errors.py           # One error format: {"detail": ..., "errors": {field: message}}
 │   ├── security.py         # Password hashing, JWT, "current user"
 │   ├── services.py         # Shared logic: rooms, messages, unread counts, receipts
-│   ├── migrations.py       # Adds new columns to older databases automatically
 │   ├── connections.py      # Who's connected right now (WebSocket manager)
 │   ├── storage.py          # Safe file saving: size limits, type checks
 │   ├── routers/
@@ -135,8 +134,8 @@ Browser ──HTTP (REST)──► FastAPI ──► SQLAlchemy ──► SQLite
 | Password (sign-up) | 8–16 characters; at least one letter and one number; no spaces anywhere; can't contain the username |
 
 The browser checks these as you type, and the server checks them again (browser checks can be
-bypassed). Sign-in only requires that both fields are filled, so accounts created under older,
-looser rules can still sign in.
+bypassed). Sign-in only checks that both fields are filled; the full rules apply when creating
+an account.
 
 Every error comes back in one format, so the page can show each message under its own field:
 
@@ -166,7 +165,7 @@ cd C:\Users\<you>\Projects\chat-app
 py -3.12 -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env          # then put a random SECRET_KEY in .env using below command
+copy .env.example .env          # then put a random SECRET_KEY in .env
 # Open .env and replace SECRET_KEY with a random value. You can generate one with:
 python -c "import secrets; print(secrets.token_hex(32))" 
 python run.py
@@ -203,7 +202,8 @@ docker compose up --build
 - **Delete for everyone keeps a placeholder** (like WhatsApp), so replies quoting it still make sense, and it also deletes the shared file from disk for privacy.
 - **Delete for me** is a separate `hidden_messages` table: the message stays for everyone else.
 - **Sounds are generated in code** with the Web Audio API, so there are no audio files to load.
-- **Automatic database upgrades:** `migrations.py` adds new columns to older databases. Larger projects use Alembic for this.
+- **Display names:** the lowercase `username` is used to sign in, so "alice" and "Alice" are one account. The `display_name` keeps a capital first letter only if it was typed ("ALICE" is shown as "Alice").
+- **Database changes:** tables are created on first start. If you change `models.py` during development, delete `chat.db` and restart. Larger projects use Alembic migrations for this.
 - **Incremental rendering:** new messages are appended rather than redrawing the list, so a playing video or voice note isn't interrupted.
 - **Media URLs carry the token:** `<img>` and `<video>` tags can't send headers, so file links include the login token.
 - **`client_id` for optimistic UI:** the browser tags each message so it can replace the "Sending…" version when the server confirms it.

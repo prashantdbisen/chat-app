@@ -13,10 +13,10 @@ def login(client, username, password):
 
 def test_register_login_and_me(client):
     alice = signup(client, "Alice")
-    assert alice["user"]["username"] == "alice"  # usernames are stored in lowercase
+    assert alice["user"]["username"] == "Alice"  # shown as typed; signing in ignores case
     response = login(client, "  ALICE ", "secret123")
     assert response.status_code == 200
-    assert client.get("/api/auth/me", headers=alice["headers"]).json()["username"] == "alice"
+    assert client.get("/api/auth/me", headers=alice["headers"]).json()["username"] == "Alice"
 
 
 @pytest.mark.parametrize("username, message", [
@@ -57,20 +57,28 @@ def test_password_length_limits_are_inclusive(client):
     assert register(client, "heidi", "abcdefgh12345678").status_code == 201  # exactly 16
 
 
-def test_older_long_passwords_can_still_sign_in(client):
-    from app.database import SessionLocal
-    from app.models import User
-    from app.security import hash_password
-
-    with SessionLocal() as db:  # made before the 16-character limit
-        db.add(User(username="longpass", password_hash=hash_password("a very long old password 123")))
-        db.commit()
-    assert login(client, "longpass", "a very long old password 123").status_code == 200
-
-
 def test_missing_fields(client):
     response = client.post("/api/auth/register", json={})
     assert response.json()["errors"] == {"username": "Enter a username.", "password": "Enter a password."}
+
+
+@pytest.mark.parametrize("typed, shown", [
+    ("Alice", "Alice"), ("alice", "alice"), ("ALICE", "Alice"), ("aLiCe", "alice"), ("Mr_Bean99", "Mr_bean99"),
+])
+def test_display_name_keeps_only_a_typed_first_capital(client, typed, shown):
+    user = signup(client, typed)["user"]
+    assert user["username"] == shown
+    assert login(client, typed.lower(), "secret123").json()["user"]["username"] == shown
+    assert register(client, typed.swapcase(), "secret123").status_code == 409  # still one account per name
+
+
+def test_display_name_appears_everywhere(client):
+    alice, bob = signup(client, "Alice"), signup(client, "Bob")
+    assert [u["username"] for u in client.get("/api/users/search?q=bob", headers=alice["headers"]).json()] == ["Bob"]
+    general = client.get("/api/rooms", headers=alice["headers"]).json()[0]
+    assert [m["username"] for m in general["members"]] == ["Alice", "Bob"]
+    dm = client.post("/api/rooms/direct/BOB", headers=alice["headers"]).json()  # any case works
+    assert sorted(m["username"] for m in dm["members"]) == ["Alice", "Bob"]
 
 
 def test_duplicate_username_says_it_is_taken(client):
@@ -119,17 +127,6 @@ def test_successful_login_resets_failed_attempts(client):
         login(client, "erin", "nope12345")
     assert login(client, "erin", "secret123").status_code == 200
     assert login(client, "erin", "nope12345").json()["detail"] == "Incorrect password."
-
-
-def test_older_accounts_with_short_passwords_can_still_sign_in(client):
-    from app.database import SessionLocal
-    from app.models import User
-    from app.security import hash_password
-
-    with SessionLocal() as db:  # created before the current password rules existed
-        db.add(User(username="oldtimer", password_hash=hash_password("abc123")))
-        db.commit()
-    assert login(client, "oldtimer", "abc123").status_code == 200
 
 
 def test_protected_routes_need_a_valid_token(client):
