@@ -1,0 +1,21 @@
+# Secrets - never upload
+.env
+
+# Local database and shared files
+*.db
+uploads/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Virtual environment
+venv/
+.venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
